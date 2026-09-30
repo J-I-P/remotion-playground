@@ -34,9 +34,13 @@ const BEATS = {
   barFrames: 32, // Scene 2: how long the fill takes
   systemReady: 46, // Scene 2: "✓ system ready" appears
   signal: 44, // Scene 3: warning interrupts the scan
-  lookLeft: 34, // Scene 4: glance left
-  lookRight: 58, // Scene 4: glance right
-  question: 82, // Scene 4: "?" appears
+  dotIn: 4, // Scene 4: dot pops in (alone, no face yet)
+  react: 16, // Scene 4: startle — small squash + hop, reacting to the signal
+  lookLeft: 44, // Scene 4: dot drifts left to look
+  lookRight: 64, // Scene 4: dot drifts right to look
+  lookBack: 84, // Scene 4: settles back to center
+  face: 92, // Scene 4: "(・_・ )" fades in above the dot
+  question: 104, // Scene 4: "?" appears with a small head tilt
   moduleLine: 26, // Scene 5: "> curiosity module initialized." appears
 };
 
@@ -326,28 +330,68 @@ const Scan: React.FC = () => {
 };
 
 // Scenes 4 + 5 share one mascot so it never jumps between scenes.
+// All personality comes from the numbers below: keep them small.
 const MascotScenes: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const inInitialized = frame >= DURATIONS.mascot;
   const local5 = frame - DURATIONS.mascot;
-
-  // Looking around (scene 4): glance left, glance right, settle.
   const ease = Easing.inOut(Easing.cubic);
-  const look = interpolate(
+
+  // 1. Pop in: a calm spring, barely any overshoot.
+  const pop = spring({
+    frame: frame - BEATS.dotIn,
+    fps,
+    config: { damping: 16, stiffness: 140 },
+  });
+
+  // 2. Reaction to the signal: squash, small hop, settle.
+  const r = frame - BEATS.react;
+  const hop = interpolate(r, [0, 4, 10, 18, 26], [0, 4, -18, 2, 0], {
+    ...clamp,
+    easing: ease,
+  });
+  const squash = interpolate(r, [0, 4, 10, 18, 26], [1, 0.9, 1.05, 0.98, 1], {
+    ...clamp,
+    easing: ease,
+  });
+
+  // 3. Idle float + breathing, faded in once the reaction has settled.
+  const idleAmount = interpolate(r, [26, 46], [0, 1], clamp);
+  const t = frame / fps;
+  const float = Math.sin(t * Math.PI * 0.8) * 5 * idleAmount;
+  const breathe = 1 + Math.sin(t * Math.PI * 0.8 + 1) * 0.012 * idleAmount;
+
+  // 4. Looking around: a small drift left, a pause, right, back to center.
+  const lookX = interpolate(
     frame,
     [
       BEATS.lookLeft,
-      BEATS.lookLeft + 8,
-      BEATS.lookLeft + 18,
+      BEATS.lookLeft + 9,
       BEATS.lookRight,
-      BEATS.lookRight + 8,
-      BEATS.lookRight + 18,
-      BEATS.lookRight + 26,
+      BEATS.lookRight + 9,
+      BEATS.lookBack,
+      BEATS.lookBack + 10,
     ],
-    [0, -22, -22, -22, 22, 22, 0],
+    [0, -16, -16, 16, 16, 0],
     { ...clamp, easing: ease },
   );
+  // The dot leans a hair into each glance (squash toward the look direction).
+  const lean = lookX / 16; // -1..1
+  const leanScaleX = 1 + Math.abs(lean) * 0.03;
+
+  // 5. Delayed face, then the "?" with a small head tilt.
+  const faceT = interpolate(frame, [BEATS.face, BEATS.face + 12], [0, 1], clamp);
+  const q = spring({
+    frame: frame - BEATS.question,
+    fps,
+    config: { damping: 12, stiffness: 160 },
+  });
+  const tilt = inInitialized ? 0 : q * 5;
+  const questionHop = interpolate(frame - BEATS.question, [0, 5, 14], [0, -6, 0], {
+    ...clamp,
+    easing: ease,
+  });
 
   // Scene 5: a small confident "bump" of the dot.
   const bump = spring({
@@ -355,16 +399,11 @@ const MascotScenes: React.FC = () => {
     fps,
     config: { damping: 10, stiffness: 180 },
   });
-  const dotScale = inInitialized
+  const bumpScale = inInitialized
     ? 1 + 0.08 * Math.sin(Math.min(bump, 1) * Math.PI)
     : 1;
+  const bumpHop = inInitialized ? -10 * Math.sin(Math.min(bump, 1) * Math.PI) : 0;
 
-  const questionT = interpolate(
-    frame,
-    [BEATS.question, BEATS.question + 8],
-    [0, 1],
-    clamp,
-  );
   const sparkle = 0.55 + 0.45 * Math.sin((local5 / fps) * Math.PI * 2);
 
   const expression = inInitialized ? (
@@ -375,14 +414,33 @@ const MascotScenes: React.FC = () => {
   ) : (
     <>
       (・_・
-      <span style={{ opacity: questionT, color: COLORS.accent }}>?</span>)
+      <span
+        style={{
+          display: "inline-block",
+          opacity: Math.min(q, 1),
+          transform: `scale(${0.6 + 0.4 * q})`,
+          color: COLORS.accent,
+        }}
+      >
+        ?
+      </span>
+      )
     </>
   );
 
   return (
     <SceneFrame duration={DURATIONS.mascot + DURATIONS.initialized}>
       <div style={{ transform: "translateY(-80px)" }}>
-        <Mascot expression={expression} eyesX={look} dotScale={dotScale} />
+        <Mascot
+          expression={expression}
+          faceOpacity={faceT}
+          faceX={lookX * 0.6}
+          faceTilt={tilt}
+          y={float + hop + questionHop + bumpHop}
+          dotX={lookX}
+          dotScaleX={pop * squash * breathe * bumpScale * leanScaleX}
+          dotScaleY={pop * (2 - squash) * breathe * bumpScale}
+        />
       </div>
       <Sequence from={DURATIONS.mascot} layout="none">
         <div

@@ -1,9 +1,4 @@
-import {
-  interpolate,
-  spring,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
+import { interpolate, useCurrentFrame } from "remotion";
 import { COLORS, FONTS } from "./JYPinBoot";
 
 // Block cursor. Blinks on a fixed rhythm (15 frames on / 15 off at 30fps).
@@ -55,19 +50,27 @@ export const Line: React.FC<{
 };
 
 // The mascot: an orange dot with a kaomoji expression floating above it.
-// `eyesX` shifts the eyes inside the parentheses (the "looking around" trick).
+// It has no motion of its own: JYPinBoot.tsx drives it through props so all
+// the timing lives in one place.
 export const Mascot: React.FC<{
   expression: React.ReactNode;
-  eyesX?: number;
-  dotScale?: number;
-}> = ({ expression, eyesX = 0, dotScale = 1 }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-
-  const pop = spring({ frame, fps, config: { damping: 14, stiffness: 120 } });
-  // Tiny idle float, ~6px, slow.
-  const bob = Math.sin((frame / fps) * Math.PI * 0.9) * 6;
-
+  faceOpacity?: number;
+  faceX?: number; // px, shifts the whole face (the "looking" cue)
+  faceTilt?: number; // degrees
+  y?: number; // px, whole-mascot vertical offset (float / hops)
+  dotX?: number; // px, dot's horizontal look offset
+  dotScaleX?: number;
+  dotScaleY?: number;
+}> = ({
+  expression,
+  faceOpacity = 1,
+  faceX = 0,
+  faceTilt = 0,
+  y = 0,
+  dotX = 0,
+  dotScaleX = 1,
+  dotScaleY = 1,
+}) => {
   return (
     <div
       style={{
@@ -75,7 +78,7 @@ export const Mascot: React.FC<{
         flexDirection: "column",
         alignItems: "center",
         gap: 56,
-        transform: `translateY(${bob}px)`,
+        transform: `translateY(${y}px)`,
       }}
     >
       <div
@@ -84,14 +87,8 @@ export const Mascot: React.FC<{
           fontSize: 76,
           color: COLORS.fg,
           whiteSpace: "pre",
-          opacity: interpolate(frame, [6, 20], [0, 1], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          }),
-          transform: `translateY(${interpolate(frame, [6, 20], [10, 0], {
-            extrapolateLeft: "clamp",
-            extrapolateRight: "clamp",
-          })}px) translateX(${eyesX}px)`,
+          opacity: faceOpacity,
+          transform: `translate(${faceX}px, ${(1 - faceOpacity) * 8}px) rotate(${faceTilt}deg)`,
         }}
       >
         {expression}
@@ -102,7 +99,8 @@ export const Mascot: React.FC<{
           height: 120,
           borderRadius: "50%",
           backgroundColor: COLORS.accent,
-          transform: `scale(${pop * dotScale})`,
+          transform: `translateX(${dotX}px) scale(${dotScaleX}, ${dotScaleY})`,
+          transformOrigin: "50% 100%",
           boxShadow: `0 0 80px ${COLORS.accent}33`,
         }}
       />
