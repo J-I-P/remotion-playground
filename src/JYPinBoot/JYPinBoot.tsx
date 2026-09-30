@@ -1,7 +1,9 @@
 import {
   AbsoluteFill,
   Easing,
+  Html5Audio,
   Sequence,
+  staticFile,
   interpolate,
   spring,
   useCurrentFrame,
@@ -57,6 +59,20 @@ const starts = (() => {
 })();
 
 export const TOTAL_FRAMES = Object.values(DURATIONS).reduce((a, b) => a + b, 0);
+
+// ---------------------------------------------------------------------------
+// SOUND — placeholder SFX in public/sfx/ (see public/sfx/README.md).
+// Each cue is pinned to the visual BEAT it belongs to, so retiming a beat
+// moves its sound too. `offset` nudges the sound alone (frames, can be
+// negative: e.g. -2 to land the click just before the visual).
+// ---------------------------------------------------------------------------
+const SFX = [
+  { file: "click.wav", at: starts.execute + BEATS.execute, offset: 0, volume: 0.5 }, // enter / execute
+  { file: "confirm.wav", at: starts.loading + BEATS.systemReady, offset: 0, volume: 0.5 }, // "✓ system ready"
+  { file: "alert.wav", at: starts.scan + BEATS.signal, offset: 0, volume: 0.5 }, // CURIOSITY SIGNAL DETECTED
+  { file: "pop.wav", at: starts.mascot + BEATS.dotIn, offset: 0, volume: 0.5 }, // mascot appears
+  { file: "success.wav", at: starts.initialized + BEATS.moduleLine, offset: 0, volume: 0.4 }, // curiosity initialized
+];
 
 // ---------------------------------------------------------------------------
 // LOOK
@@ -531,6 +547,12 @@ export const JYPinBoot: React.FC = () => {
           <Ready />
         </SceneFrame>
       </Sequence>
+
+      {SFX.map((cue) => (
+        <Sequence key={cue.file} from={Math.max(0, cue.at + cue.offset)}>
+          <Html5Audio src={staticFile(`sfx/${cue.file}`)} volume={cue.volume} />
+        </Sequence>
+      ))}
     </AbsoluteFill>
   );
 };
