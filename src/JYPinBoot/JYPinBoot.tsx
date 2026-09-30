@@ -17,30 +17,30 @@ import { Cursor, Line, Mascot } from "./parts";
 export const FPS = 30;
 
 const DURATIONS = {
-  execute: 60, // Scene 1: "> JYPin.exe" + cursor, then executes
-  loading: 66, // Scene 2: loading bar → "✓ system ready"
-  scan: 90, // Scene 3: "scanning..." → "⚠ CURIOSITY SIGNAL DETECTED"
-  mascot: 120, // Scene 4: dot pops in, looks around, "?" appears
-  initialized: 120, // Scene 5: confident face + "curiosity module initialized."
-  ready: 105, // Scene 6: "> JYPin.exe / ready_" and hold
+  execute: 66, // Scene 1: "> JYPin.exe" + cursor, then executes
+  loading: 78, // Scene 2: loading bar → "✓ system ready"
+  scan: 102, // Scene 3: "scanning..." → "⚠ CURIOSITY SIGNAL DETECTED"
+  mascot: 132, // Scene 4: dot pops in, looks around, "?" appears
+  initialized: 96, // Scene 5: confident face + "curiosity module initialized."
+  ready: 120, // Scene 6: "> JYPin.exe / ready_" and hold
 };
 
 // Moments inside scenes (frames relative to the scene's own start).
 const BEATS = {
   typeStart: 8, // Scene 1: start typing "JYPin.exe"
   typeFramesPerChar: 2,
-  execute: 42, // Scene 1: "enter" pressed, line exits
+  execute: 46, // Scene 1: "enter" pressed, line exits
   barStart: 10, // Scene 2: progress bar starts filling
-  barFrames: 32, // Scene 2: how long the fill takes
-  systemReady: 46, // Scene 2: "✓ system ready" appears
-  signal: 44, // Scene 3: warning interrupts the scan
-  dotIn: 4, // Scene 4: dot pops in (alone, no face yet)
-  react: 16, // Scene 4: startle — small squash + hop, reacting to the signal
-  lookLeft: 44, // Scene 4: dot drifts left to look
-  lookRight: 64, // Scene 4: dot drifts right to look
-  lookBack: 84, // Scene 4: settles back to center
-  face: 92, // Scene 4: "(・_・ )" fades in above the dot
-  question: 104, // Scene 4: "?" appears with a small head tilt
+  barFrames: 34, // Scene 2: how long the fill takes
+  systemReady: 48, // Scene 2: "✓ system ready" appears
+  signal: 56, // Scene 3: warning interrupts the scan
+  dotIn: 4, // Scene 4: dot pops in (alone, no face yet); the gap until `react` is the pause
+  react: 34, // Scene 4: startle — small squash + hop, reacting to the signal
+  lookLeft: 62, // Scene 4: dot drifts left to look
+  lookRight: 82, // Scene 4: dot drifts right to look
+  lookBack: 100, // Scene 4: settles back to center
+  face: 104, // Scene 4: "(・_・ )" fades in above the dot
+  question: 114, // Scene 4: "?" appears with a small head tilt
   moduleLine: 26, // Scene 5: "> curiosity module initialized." appears
 };
 
@@ -217,14 +217,14 @@ const Scan: React.FC = () => {
   const pop = spring({
     frame: frame - BEATS.signal,
     fps,
-    config: { damping: 18, stiffness: 160 },
+    config: { damping: 22, stiffness: 260 }, // fast + crisp = interruption
   });
   // Slow sweep across a thin track — the "subtle motion" of scanning.
   const sweep = ((frame * 1.6) % 100) / 100;
   const scanDim = interpolate(
     frame,
-    [BEATS.signal, BEATS.signal + 8],
-    [1, 0.25],
+    [BEATS.signal, BEATS.signal + 3], // the calm state is cut, not faded
+    [1, 0.2],
     clamp,
   );
 
