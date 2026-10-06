@@ -100,6 +100,7 @@ const SceneFrame: React.FC<{
         justifyContent: "center",
         alignItems: "center",
         // Shift content above the middle, clear of the platform UI at the bottom.
+        boxSizing: "border-box",
         paddingBottom: -CENTER_OFFSET_Y * 2,
         opacity: Math.min(inT, outT),
         transform: `translateY(${(1 - inT) * 16 + (1 - outT) * -16}px)`,
