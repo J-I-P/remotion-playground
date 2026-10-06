@@ -1,5 +1,26 @@
-import { interpolate, useCurrentFrame } from "remotion";
-import { COLORS, FONTS } from "./JYPinBoot";
+import { useEffect, useState } from "react";
+import {
+  continueRender,
+  delayRender,
+  interpolate,
+  useCurrentFrame,
+} from "remotion";
+import { COLORS, FONTS, FONT_FACES, KAOMOJI_GLYPHS, SIZE } from "./theme";
+
+// Holds rendering until the bundled fonts are loaded, so no frame is ever
+// captured with a fallback font.
+export const useFontsReady = () => {
+  const [handle] = useState(() => delayRender("Loading fonts"));
+  useEffect(() => {
+    Promise.all(
+      FONT_FACES.map((face) =>
+        document.fonts.load(face, `JYPin.exe ${KAOMOJI_GLYPHS}`),
+      ),
+    )
+      .then(() => document.fonts.ready)
+      .finally(() => continueRender(handle));
+  }, [handle]);
+};
 
 // Block cursor. Blinks on a fixed rhythm (15 frames on / 15 off at 30fps).
 export const Cursor: React.FC<{
@@ -77,14 +98,14 @@ export const Mascot: React.FC<{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 56,
+        gap: 72,
         transform: `translateY(${y}px)`,
       }}
     >
       <div
         style={{
           fontFamily: FONTS.kaomoji,
-          fontSize: 76,
+          fontSize: SIZE.face,
           color: COLORS.fg,
           whiteSpace: "pre",
           opacity: faceOpacity,
@@ -95,13 +116,13 @@ export const Mascot: React.FC<{
       </div>
       <div
         style={{
-          width: 120,
-          height: 120,
+          width: SIZE.dot,
+          height: SIZE.dot,
           borderRadius: "50%",
           backgroundColor: COLORS.accent,
           transform: `translateX(${dotX}px) scale(${dotScaleX}, ${dotScaleY})`,
           transformOrigin: "50% 100%",
-          boxShadow: `0 0 80px ${COLORS.accent}33`,
+          boxShadow: `0 0 120px ${COLORS.accent}40`,
         }}
       />
     </div>

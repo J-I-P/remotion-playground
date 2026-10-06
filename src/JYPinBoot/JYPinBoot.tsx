@@ -9,7 +9,8 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { Cursor, Line, Mascot } from "./parts";
+import { Cursor, Line, Mascot, useFontsReady } from "./parts";
+import { CENTER_OFFSET_Y, COLORS, FONTS, SIZE } from "./theme";
 
 // ---------------------------------------------------------------------------
 // TIMING — everything in frames (30fps, so 30 = 1 second).
@@ -24,7 +25,7 @@ const DURATIONS = {
   scan: 102, // Scene 3: "scanning..." → "⚠ CURIOSITY SIGNAL DETECTED"
   mascot: 132, // Scene 4: dot pops in, looks around, "?" appears
   initialized: 96, // Scene 5: confident face + "curiosity module initialized."
-  ready: 120, // Scene 6: "> JYPin.exe / ready_" and hold
+  ready: 84, // Scene 6: "> JYPin.exe / ready" + cursor, short hold
 };
 
 // Moments inside scenes (frames relative to the scene's own start).
@@ -74,24 +75,6 @@ const SFX = [
   { file: "success.wav", at: starts.initialized + BEATS.moduleLine, offset: 0, volume: 0.4 }, // curiosity initialized
 ];
 
-// ---------------------------------------------------------------------------
-// LOOK
-// ---------------------------------------------------------------------------
-export const COLORS = {
-  bg: "#0B132B",
-  bg2: "#1C2541",
-  accent: "#FF6B00",
-  fg: "#F4F5F6",
-  muted: "rgba(244, 245, 246, 0.45)",
-};
-
-export const FONTS = {
-  mono: "'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace",
-  sans: "Inter, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif",
-  kaomoji:
-    "'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', 'DejaVu Sans', sans-serif",
-};
-
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 // Fade + small lift at the start and end of a scene.
@@ -116,6 +99,8 @@ const SceneFrame: React.FC<{
       style={{
         justifyContent: "center",
         alignItems: "center",
+        // Shift content above the middle, clear of the platform UI at the bottom.
+        paddingBottom: -CENTER_OFFSET_Y * 2,
         opacity: Math.min(inT, outT),
         transform: `translateY(${(1 - inT) * 16 + (1 - outT) * -16}px)`,
       }}
@@ -138,13 +123,13 @@ const Execute: React.FC = () => {
   // "Enter": the prompt briefly turns orange, then the scene fades out.
   const executing = frame >= BEATS.execute;
   return (
-    <div style={{ fontFamily: FONTS.mono, fontSize: 72, color: COLORS.fg }}>
+    <div style={{ fontFamily: FONTS.mono, fontSize: SIZE.hero, color: COLORS.fg }}>
       <span style={{ color: executing ? COLORS.accent : COLORS.muted }}>
         &gt;
       </span>{" "}
       {word.slice(0, typed)}{" "}
       {/* Blinks while idle, stays solid while typing. */}
-      <Cursor size={72} blink={typed === 0 || typed >= word.length} />
+      <Cursor size={SIZE.hero} blink={typed === 0 || typed >= word.length} />
     </div>
   );
 };
@@ -164,10 +149,10 @@ const Loading: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-start",
-        gap: 40,
+        gap: 48,
       }}
     >
-      <Line style={{ fontSize: 44, color: COLORS.muted }}>
+      <Line style={{ fontSize: SIZE.body, color: COLORS.muted }}>
         loading curiosity...
       </Line>
       <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
@@ -184,8 +169,8 @@ const Loading: React.FC = () => {
               <div
                 key={i}
                 style={{
-                  width: 46,
-                  height: 46,
+                  width: 58,
+                  height: 58,
                   borderRadius: 6,
                   backgroundColor: COLORS.bg2,
                   overflow: "hidden",
@@ -206,9 +191,9 @@ const Loading: React.FC = () => {
         <div
           style={{
             fontFamily: FONTS.mono,
-            fontSize: 44,
+            fontSize: SIZE.body,
             color: COLORS.fg,
-            width: 120,
+            width: 170,
             textAlign: "right",
           }}
         >
@@ -217,7 +202,7 @@ const Loading: React.FC = () => {
       </div>
       <Line
         delay={BEATS.systemReady}
-        style={{ fontSize: 44, color: COLORS.fg }}
+        style={{ fontSize: SIZE.body, color: COLORS.fg }}
       >
         <span style={{ color: COLORS.accent }}>✓</span> system ready
       </Line>
@@ -250,7 +235,7 @@ const Scan: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 180,
+        gap: 200,
       }}
     >
       <div
@@ -265,17 +250,17 @@ const Scan: React.FC = () => {
         <div
           style={{
             fontFamily: FONTS.mono,
-            fontSize: 44,
+            fontSize: SIZE.body,
             color: COLORS.muted,
-            width: 330,
+            width: 450, // fixed so the animated dots don't shift the text
           }}
         >
           scanning{dots}
         </div>
         <div
           style={{
-            width: 520,
-            height: 4,
+            width: 760,
+            height: 5,
             borderRadius: 2,
             backgroundColor: COLORS.bg2,
             position: "relative",
@@ -287,7 +272,7 @@ const Scan: React.FC = () => {
               position: "absolute",
               top: 0,
               bottom: 0,
-              width: 120,
+              width: 170,
               left: `${sweep * 130 - 25}%`,
               background: `linear-gradient(90deg, transparent, ${COLORS.fg}cc, transparent)`,
               opacity: signal ? 0 : 1,
@@ -310,15 +295,16 @@ const Scan: React.FC = () => {
           style={{
             fontFamily: FONTS.sans,
             fontWeight: 700,
-            fontSize: 42,
-            letterSpacing: 3,
+            fontSize: SIZE.alert,
+            letterSpacing: 2,
             color: COLORS.accent,
             display: "flex",
+            flexDirection: "column", // icon above text: the line is too wide for one row at this size
             alignItems: "center",
-            gap: 22,
+            gap: 28,
           }}
         >
-          <svg width="42" height="38" viewBox="0 0 52 46">
+          <svg width="84" height="74" viewBox="0 0 52 46">
             <path
               d="M26 3 L49 43 H3 Z"
               fill="none"
@@ -334,7 +320,7 @@ const Scan: React.FC = () => {
         <div
           style={{
             height: 3,
-            width: 520 * pop,
+            width: 900 * pop,
             backgroundColor: COLORS.accent,
             opacity: 0.5,
             borderRadius: 2,
@@ -363,7 +349,7 @@ const MascotScenes: React.FC = () => {
 
   // 2. Reaction to the signal: squash, small hop, settle.
   const r = frame - BEATS.react;
-  const hop = interpolate(r, [0, 4, 10, 18, 26], [0, 4, -18, 2, 0], {
+  const hop = interpolate(r, [0, 4, 10, 18, 26], [0, 6, -26, 3, 0], {
     ...clamp,
     easing: ease,
   });
@@ -375,7 +361,7 @@ const MascotScenes: React.FC = () => {
   // 3. Idle float + breathing, faded in once the reaction has settled.
   const idleAmount = interpolate(r, [26, 46], [0, 1], clamp);
   const t = frame / fps;
-  const float = Math.sin(t * Math.PI * 0.8) * 5 * idleAmount;
+  const float = Math.sin(t * Math.PI * 0.8) * 7 * idleAmount;
   const breathe = 1 + Math.sin(t * Math.PI * 0.8 + 1) * 0.012 * idleAmount;
 
   // 4. Looking around: a small drift left, a pause, right, back to center.
@@ -389,11 +375,11 @@ const MascotScenes: React.FC = () => {
       BEATS.lookBack,
       BEATS.lookBack + 10,
     ],
-    [0, -16, -16, 16, 16, 0],
+    [0, -22, -22, 22, 22, 0],
     { ...clamp, easing: ease },
   );
   // The dot leans a hair into each glance (squash toward the look direction).
-  const lean = lookX / 16; // -1..1
+  const lean = lookX / 22; // -1..1
   const leanScaleX = 1 + Math.abs(lean) * 0.03;
 
   // 5. Delayed face, then the "?" with a small head tilt.
@@ -404,7 +390,7 @@ const MascotScenes: React.FC = () => {
     config: { damping: 12, stiffness: 160 },
   });
   const tilt = inInitialized ? 0 : q * 5;
-  const questionHop = interpolate(frame - BEATS.question, [0, 5, 14], [0, -6, 0], {
+  const questionHop = interpolate(frame - BEATS.question, [0, 5, 14], [0, -9, 0], {
     ...clamp,
     easing: ease,
   });
@@ -418,7 +404,7 @@ const MascotScenes: React.FC = () => {
   const bumpScale = inInitialized
     ? 1 + 0.08 * Math.sin(Math.min(bump, 1) * Math.PI)
     : 1;
-  const bumpHop = inInitialized ? -10 * Math.sin(Math.min(bump, 1) * Math.PI) : 0;
+  const bumpHop = inInitialized ? -14 * Math.sin(Math.min(bump, 1) * Math.PI) : 0;
 
   const sparkle = 0.55 + 0.45 * Math.sin((local5 / fps) * Math.PI * 2);
 
@@ -446,7 +432,7 @@ const MascotScenes: React.FC = () => {
 
   return (
     <SceneFrame duration={DURATIONS.mascot + DURATIONS.initialized}>
-      <div style={{ transform: "translateY(-80px)" }}>
+      <div>
         <Mascot
           expression={expression}
           faceOpacity={faceT}
@@ -462,7 +448,7 @@ const MascotScenes: React.FC = () => {
         <div
           style={{
             position: "absolute",
-            bottom: 560,
+            bottom: 640,
             left: 0,
             right: 0,
             display: "flex",
@@ -471,7 +457,7 @@ const MascotScenes: React.FC = () => {
         >
           <Line
             delay={BEATS.moduleLine}
-            style={{ fontSize: 40, color: COLORS.muted }}
+            style={{ fontSize: SIZE.small, color: COLORS.muted }}
           >
             <span style={{ color: COLORS.fg }}>&gt;</span> curiosity module
             initialized.
@@ -489,18 +475,25 @@ const Ready: React.FC = () => {
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-start",
-        gap: 24,
+        gap: 28,
         fontFamily: FONTS.mono,
       }}
     >
-      <Line style={{ fontSize: 72, color: COLORS.fg }}>
+      <Line style={{ fontSize: SIZE.hero, color: COLORS.fg }}>
         <span style={{ color: COLORS.muted }}>&gt;</span> JYPin.exe
       </Line>
-      <Line delay={10} style={{ fontSize: 44, color: COLORS.muted }}>
-        ready_
-      </Line>
-      <Line delay={22} style={{ marginTop: 40 }}>
-        <Cursor size={64} />
+      {/* One cursor only: the orange block after "ready" is the brand mark. */}
+      <Line
+        delay={10}
+        style={{
+          fontSize: SIZE.body,
+          color: COLORS.muted,
+          display: "flex",
+          alignItems: "center",
+          gap: 18,
+        }}
+      >
+        ready <Cursor size={SIZE.body} />
       </Line>
     </div>
   );
@@ -510,6 +503,7 @@ const Ready: React.FC = () => {
 // COMPOSITION
 // ---------------------------------------------------------------------------
 export const JYPinBoot: React.FC = () => {
+  useFontsReady();
   return (
     <AbsoluteFill
       style={{
@@ -549,7 +543,7 @@ export const JYPinBoot: React.FC = () => {
       </Sequence>
 
       {SFX.map((cue) => (
-        <Sequence key={cue.file} from={Math.max(0, cue.at + cue.offset)}>
+        <Sequence key={`${cue.file}-${cue.at}`} from={Math.max(0, cue.at + cue.offset)}>
           <Html5Audio src={staticFile(`sfx/${cue.file}`)} volume={cue.volume} />
         </Sequence>
       ))}
